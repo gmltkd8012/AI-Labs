@@ -1,16 +1,39 @@
 package org.example
 
-//TIP 코드를 <b>실행</b>하려면 <shortcut actionId="Run"/>을(를) 누르거나
-// 에디터 여백에 있는 <icon src="AllIcons.Actions.Execute"/> 아이콘을 클릭하세요.
-fun main() {
-    val name = "Kotlin"
-    //TIP 캐럿을 강조 표시된 텍스트에 놓고 <shortcut actionId="ShowIntentionActions"/>을(를) 누르면
-    // IntelliJ IDEA이(가) 수정을 제안하는 것을 확인할 수 있습니다.
-    println("Hello, " + name + "!")
+import kotlinx.coroutines.runBlocking
+import org.example.llm.LLMConfig
+import org.example.model.UserRequirement
+import org.example.orchestrator.Orchestrator
 
-    for (i in 1..5) {
-        //TIP <shortcut actionId="Debug"/>을(를) 눌러 코드 디버그를 시작하세요. 1개의 <icon src="AllIcons.Debugger.Db_set_breakpoint"/> 중단점을 설정해 드렸습니다
-        // 언제든 <shortcut actionId="ToggleLineBreakpoint"/>을(를) 눌러 중단점을 더 추가할 수 있습니다.
-        println("i = $i")
+fun main() = runBlocking {
+    // 기본 실행: Ollama 로컬 모델 사용
+    val orchestrator = Orchestrator()
+
+    // 유료 모델 사용 시: Orchestrator.withPaidModel("claude")
+    // 환경변수 ANTHROPIC_API_KEY / OPENAI_API_KEY / GOOGLE_API_KEY 필요
+
+    val requirement = UserRequirement(
+        description = "날씨 정보를 검색하고 사용자에게 알려주는 Agent",
+        features = listOf("도시별 현재 날씨 조회", "날씨 기반 옷차림 추천")
+    )
+
+    val result = orchestrator.run(requirement)
+
+    println("\n===== 파이프라인 결과 =====")
+    println("Agent 이름: ${result.generatedCode.spec.agentName}")
+    println("시도 횟수: ${result.attempts}")
+    println("리뷰 승인: ${result.reviewResult.approved}")
+    println("점수: ${result.reviewResult.score}/100")
+
+    if (result.reviewResult.issues.isNotEmpty()) {
+        println("\n이슈 목록:")
+        result.reviewResult.issues.forEach { issue ->
+            println("  [${issue.severity}] ${issue.location}: ${issue.description}")
+        }
+    }
+
+    println("\n생성된 파일:")
+    result.generatedCode.files.forEach { file ->
+        println("  - ${file.path}")
     }
 }
