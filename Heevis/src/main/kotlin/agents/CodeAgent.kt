@@ -22,7 +22,7 @@ class CodeAgent(private val config: LLMConfig = LLMConfig.Ollama(modelId = "qwen
         응답은 반드시 순수 JSON만 반환하세요 (마크다운 코드블록 없이).
     """.trimIndent()
 
-    suspend fun generate(spec: AgentSpec): GeneratedCode {
+    suspend fun generate(spec: AgentSpec, reviewFeedback: List<String> = emptyList()): GeneratedCode {
         val prompt = buildString {
             appendLine("다음 설계 명세에 따라 Kotlin Koog Agent 코드를 작성하세요.")
             appendLine()
@@ -32,6 +32,11 @@ class CodeAgent(private val config: LLMConfig = LLMConfig.Ollama(modelId = "qwen
             appendLine("필요 Tool: ${spec.requiredTools.joinToString(", ")}")
             appendLine("권장 모델: ${spec.recommendedModel}")
             appendLine("아키텍처 안내: ${spec.architectureNotes}")
+            if (reviewFeedback.isNotEmpty()) {
+                appendLine()
+                appendLine("=== 이전 리뷰에서 발견된 문제점 (반드시 수정할 것) ===")
+                reviewFeedback.forEach { appendLine("- $it") }
+            }
             appendLine()
             appendLine("반환 JSON 형식:")
             appendLine("""{

@@ -27,6 +27,11 @@ dependencies {
     implementation("ai.koog:koog-agents:1.0.0-preview7")
     implementation("ai.koog:koog-ktor:1.0.0-beta-preview7")
 
+    // Ktor HTTP Client (for direct Gemini Imagen API calls)
+    implementation("io.ktor:ktor-client-cio:3.3.3")
+    implementation("io.ktor:ktor-client-content-negotiation:3.3.3")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.3.3")
+
     // Test
     testImplementation(kotlin("test"))
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")

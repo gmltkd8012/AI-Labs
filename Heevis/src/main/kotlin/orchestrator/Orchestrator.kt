@@ -29,10 +29,11 @@ class Orchestrator(
 
         var lastCode: GeneratedCode? = null
         var lastReview: ReviewResult? = null
+        var feedback: List<String> = emptyList()
 
         repeat(maxRetries) { attempt ->
             println("[CodeAgent] 코드 생성 중... (시도 ${attempt + 1}/$maxRetries)")
-            val code = codeAgent.generate(spec)
+            val code = codeAgent.generate(spec, feedback)
             println("[CodeAgent] 완료 — 파일 ${code.files.size}개 생성")
 
             println("[ReviewAgent] 코드 리뷰 중...")
@@ -47,12 +48,15 @@ class Orchestrator(
                 return PipelineResult(code, review, attempt + 1)
             }
 
-            val criticalIssues = review.issues.filter {
-                it.severity.name == "CRITICAL"
-            }
-            if (criticalIssues.isNotEmpty()) {
-                println("[Orchestrator] CRITICAL 이슈 ${criticalIssues.size}개 발견, 재시도...")
-                criticalIssues.forEach { println("  - ${it.location}: ${it.description}") }
+            val issuesForFeedback = review.issues
+                .sortedBy { it.severity }
+                .map { "[${it.severity}] ${it.location}: ${it.description} → ${it.suggestion}" }
+            feedback = issuesForFeedback
+
+            val criticalCount = review.issues.count { it.severity.name == "CRITICAL" }
+            if (criticalCount > 0) {
+                println("[Orchestrator] CRITICAL 이슈 ${criticalCount}개 발견, 피드백 포함 재시도...")
+                issuesForFeedback.forEach { println("  - $it") }
             }
         }
 

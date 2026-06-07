@@ -1,7 +1,10 @@
 package org.example.agents
 
 import ai.koog.agents.core.agent.AIAgent
+import ai.koog.agents.core.agent.config.AIAgentConfig
 import ai.koog.agents.core.tools.ToolRegistry
+import ai.koog.prompt.dsl.prompt
+import ai.koog.prompt.params.LLMParams
 import org.example.llm.LLMConfig
 import org.example.tools.SpecializedTools
 
@@ -24,16 +27,47 @@ class RouterAgent(private val config: LLMConfig = LLMConfig.Ollama(modelId = "ll
         tools(SpecializedTools().asTools())
     }
 
+    private val history = mutableListOf<Pair<String, String>>()
+    private val executor = config.createExecutor()
+
     suspend fun chat(userMessage: String): String {
-        config.createExecutor().use { executor ->
-            val agent = AIAgent(
-                promptExecutor = executor,
-                llmModel = config.model,
-                systemPrompt = systemPrompt,
-                toolRegistry = toolRegistry,
-                temperature = 0.7
-            )
-            return agent.run(userMessage) ?: "응답을 받지 못했습니다."
+        val agentConfig = AIAgentConfig(
+            prompt = prompt(id = "chat", params = LLMParams(temperature = 0.7)) {
+                system(systemPrompt)
+                history.forEach { (user, assistant) ->
+                    user(user)
+                    assistant(assistant)
+                }
+            },
+            model = config.model,
+            maxAgentIterations = 50
+        )
+
+        val agent = AIAgent(
+            promptExecutor = executor,
+            agentConfig = agentConfig,
+            toolRegistry = toolRegistry
+        )
+
+        val response = try {
+            agent.run(userMessage) ?: "응답을 받지 못했습니다."
+        } catch (e: Exception) {
+            if (isOllamaConnectionError(e)) {
+                "Ollama 서버에 연결할 수 없습니다. 별도 터미널에서 'ollama serve' 를 먼저 실행해주세요."
+            } else {
+                "오류가 발생했습니다: ${e.message}"
+            }
         }
+        history.add(userMessage to response)
+        return response
+    }
+
+    fun close() = executor.close()
+
+    private fun isOllamaConnectionError(e: Exception): Boolean {
+        val msg = e.message?.lowercase() ?: ""
+        val cause = e.cause?.message?.lowercase() ?: ""
+        return listOf("connection refused", "connect timed out", "failed to connect", "localhost:11434")
+            .any { it in msg || it in cause }
     }
 }
