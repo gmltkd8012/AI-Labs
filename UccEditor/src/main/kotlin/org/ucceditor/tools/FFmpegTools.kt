@@ -111,6 +111,24 @@ class FFmpegTools(
     }
 
     @Tool
+    @LLMDescription("화면비를 변경(리프레임)합니다. 가운데를 기준으로 가득 채운 뒤 잘라 width:height에 맞춥니다. 가로→세로(9:16) 전환에 사용.")
+    suspend fun reframe(
+        @LLMDescription("입력 파일 경로") input: String,
+        @LLMDescription("목표 가로 해상도 (예: 1080)") width: Int,
+        @LLMDescription("목표 세로 해상도 (예: 1920)") height: Int,
+        @LLMDescription("출력 파일 이름 (workspace 기준)") output: String
+    ): String {
+        if (!File(input).exists()) return "파일을 찾을 수 없습니다: $input"
+        if (width <= 0 || height <= 0) return "width/height는 0보다 커야 합니다."
+        val out = resolveOutput(output)
+        return run(
+            "ffmpeg", "-y", "-i", input,
+            "-vf", "scale=$width:$height:force_original_aspect_ratio=increase,crop=$width:$height",
+            "-c:a", "copy", out
+        ).ifBlank { "리프레임 ${width}x${height} 완료 → $out" }
+    }
+
+    @Tool
     @LLMDescription("동영상에서 오디오 트랙만 추출합니다(mp3).")
     suspend fun extractAudio(
         @LLMDescription("입력 파일 경로") input: String,
@@ -121,6 +139,9 @@ class FFmpegTools(
         return run("ffmpeg", "-y", "-i", input, "-vn", "-q:a", "2", out)
             .ifBlank { "오디오 추출 완료 → $out" }
     }
+
+    /** workspace 기준 출력 경로를 절대경로로 해석합니다. (파이프라인이 중간 산출물 경로를 얻는 용도) */
+    fun pathOf(name: String): String = resolveOutput(name)
 
     private fun resolveOutput(name: String): String {
         val f = File(name)

@@ -1,7 +1,7 @@
 package org.ucceditor
 
 import kotlinx.coroutines.runBlocking
-import org.ucceditor.agents.EditorAgent
+import org.ucceditor.pipeline.EditorPipeline
 
 fun main() = runBlocking {
     if (System.getenv("GOOGLE_API_KEY").isNullOrBlank()) {
@@ -10,27 +10,5 @@ fun main() = runBlocking {
         return@runBlocking
     }
 
-    val agent = EditorAgent()
-
-    println("UccEditor — 동영상 편집 AI 에이전트 (종료: 'exit')")
-    println("편집할 영상 경로와 원하는 편집을 말씀해 주세요.")
-    println("━".repeat(48))
-
-    try {
-        while (true) {
-            print("\n사용자: ")
-            val input = readlnOrNull()?.trim() ?: break
-
-            if (input.lowercase() == "exit") {
-                println("종료합니다.")
-                break
-            }
-            if (input.isEmpty()) continue
-
-            val response = agent.chat(input)
-            println("UccEditor: $response")
-        }
-    } finally {
-        agent.close()
-    }
+    EditorPipeline().run()
 }
